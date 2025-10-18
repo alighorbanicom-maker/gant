@@ -1,0 +1,102 @@
+/**
+ * Print-specific styles for the project report.
+ *
+ * @link       https://dralighorbani.com/
+ * @since      1.0.0
+ */
+
+body {
+    background-color: #fff;
+    font-family: 'Tahoma', sans-serif;
+    line-height: 1.6;
+    color: #333;
+}
+
+.print-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+}
+
+.print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #0073aa;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.header-right h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #0073aa;
+}
+
+.header-right p, .header-left p {
+    margin: 5px 0;
+}
+
+.header-left {
+    text-align: left;
+}
+
+.header-left h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+#print-button {
+    background-color: #0073aa;
+    color: #fff;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+#print-button:hover {
+    background-color: #005a87;
+}
+
+main section {
+    margin-bottom: 30px;
+}
+
+h2 {
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    font-size: 20px;
+}
+
+.analysis-content p {
+    text-align: justify;
+}
+
+/* Print-specific media query */
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+        font-size: 12pt;
+    }
+    .print-container {
+        border: none;
+        margin: 0;
+        padding: 0;
+        max-width: 100%;
+    }
+    #print-button {
+        display: none;
+    }
+    .print-header {
+        page-break-after: avoid;
+    }
+    .gantt-section {
+        page-break-inside: avoid;
+    }
+}
