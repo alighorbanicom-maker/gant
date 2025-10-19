@@ -80,6 +80,9 @@ class Wp_Project_Manager {
 
         // Handle delete action
         add_action( 'admin_init', array( $plugin_admin, 'handle_delete_action' ) );
+
+        // Handle AI Q&A form submission
+        add_action( 'admin_post_wpm_ai_qa_submit', array( $plugin_admin, 'handle_ai_qa_submit' ) );
     }
 
     /**

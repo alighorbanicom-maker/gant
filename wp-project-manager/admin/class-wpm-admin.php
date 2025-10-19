@@ -170,6 +170,24 @@ class WPM_Admin {
             'dashicons-chart-line', // Icon
             25 // Position
         );
+
+        add_submenu_page(
+            $this->plugin_name, // Parent Slug
+            'پرسش و پاسخ با هوش مصنوعی', // Page Title
+            'پرسش و پاسخ با هوش مصنوعی', // Menu Title
+            'manage_options', // Capability
+            'wpm-ai-qa', // Menu Slug
+            array( $this, 'display_ai_qa_page' ) // Callback function
+        );
+    }
+
+    /**
+     * Callback function to display the AI Q&A page.
+     *
+     * @since    1.0.0
+     */
+    public function display_ai_qa_page() {
+        require_once plugin_dir_path( __FILE__ ) . 'templates/ai-qa-page.php';
     }
 
     /**
@@ -339,6 +357,62 @@ class WPM_Admin {
             include_once( plugin_dir_path( __FILE__ ) . 'templates/print-project-page.php' );
             exit; // Stop WordPress from loading the rest of the admin page.
         }
+    }
+
+    /**
+     * Handles the AI Q&A form submission.
+     *
+     * @since    1.0.0
+     */
+    public function handle_ai_qa_submit() {
+        // Verify nonce
+        if ( ! isset( $_POST['wpm_ai_qa_nonce_field'] ) || ! wp_verify_nonce( $_POST['wpm_ai_qa_nonce_field'], 'wpm_ai_qa_nonce' ) ) {
+            wp_die( 'Security check failed!' );
+        }
+
+        // Sanitize and retrieve form data
+        $project_duration = isset( $_POST['project_duration'] ) ? absint( $_POST['project_duration'] ) : '';
+        $project_amount = isset( $_POST['project_amount'] ) ? sanitize_text_field( $_POST['project_amount'] ) : '';
+        $project_subject = isset( $_POST['project_subject'] ) ? sanitize_text_field( $_POST['project_subject'] ) : '';
+        $contract_type = isset( $_POST['contract_type'] ) ? sanitize_text_field( $_POST['contract_type'] ) : '';
+        $project_location = isset( $_POST['project_location'] ) ? sanitize_text_field( $_POST['project_location'] ) : '';
+        $project_progress = isset( $_POST['project_progress'] ) ? absint( $_POST['project_progress'] ) : '';
+        $questioner_position = isset( $_POST['questioner_position'] ) ? sanitize_text_field( $_POST['questioner_position'] ) : '';
+        $question_description = isset( $_POST['question_description'] ) ? sanitize_textarea_field( $_POST['question_description'] ) : '';
+
+        // Generate the response using the keyword-based system
+        $ai_response = $this->generate_keyword_based_response($question_description);
+
+        // We will store the response in a transient to display it on the page.
+        set_transient( 'wpm_ai_qa_response_' . get_current_user_id(), $ai_response, 60 * 5 ); // Expires in 5 minutes
+
+        // Redirect back to the AI Q&A page
+        wp_redirect( admin_url( 'admin.php?page=wpm-ai-qa&status=success' ) );
+        exit;
+    }
+
+    /**
+     * Generates a response based on keywords found in the user's question.
+     *
+     * @since    1.0.0
+     * @param    string    $question    The user's question.
+     * @return   string    The generated response.
+     */
+    private function generate_keyword_based_response($question) {
+        $responses = [
+            'تاخیر' => 'در صورت تاخیر در انجام پروژه، طبق شرایط عمومی پیمان، کارفرما می‌تواند جریمه‌های مقرر را اعمال کند. برای اطلاعات دقیق‌تر، به ماده ۵۰ شرایط عمومی پیمان مراجعه کنید.',
+            'جریمه' => 'جریمه‌های تاخیر در پروژه، بر اساس درصدی از مبلغ پیمان و مدت زمان تاخیر محاسبه می‌شود. جزئیات کامل در قرارداد و شرایط عمومی پیمان ذکر شده است.',
+            'فسخ' => 'فسخ قرارداد، تحت شرایط خاصی مانند تاخیر بیش از حد مجاز یا عدم انجام تعهدات توسط یکی از طرفین، امکان‌پذیر است. برای اطلاع از شرایط دقیق، به ماده ۴۶ شرایط عمومی پیمان مراجعه کنید.',
+            'پیش پرداخت' => 'پیش پرداخت، معمولاً درصدی از مبلغ کل قرارداد است که در ابتدای کار به پیمانکار پرداخت می‌شود تا برای تجهیز کارگاه و شروع عملیات اجرایی، نقدینگی لازم را داشته باشد.',
+        ];
+
+        foreach ($responses as $keyword => $response) {
+            if (strpos($question, $keyword) !== false) {
+                return $response;
+            }
+        }
+
+        return 'متاسفانه پاسخ دقیقی برای سوال شما یافت نشد. لطفاً سوال خود را با جزئیات بیشتری مطرح کنید یا با دکتر علی قربانی برای مشاوره تخصصی تماس بگیرید.';
     }
 }
 ?>
