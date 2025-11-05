@@ -96,6 +96,47 @@ class AG_Moshtashar_Booking_Pro {
         add_settings_field( 'agmb_mediana_sender', 'Mediana Sender Line', array( $this, 'render_mediana_sender_field' ), $this->plugin_name, 'agmb_api_settings_section' );
         add_settings_field( 'agmb_admin_mobile', 'Admin Mobile', array( $this, 'render_admin_mobile_field' ), $this->plugin_name, 'agmb_api_settings_section' );
         add_settings_field( 'agmb_meeting_link', 'Meeting Link', array( $this, 'render_meeting_link_field' ), $this->plugin_name, 'agmb_general_settings_section' );
+        add_settings_field( 'agmb_capacity', 'Capacity per Time Slot', array( $this, 'render_capacity_field' ), $this->plugin_name, 'agmb_schedule_settings_section' );
+
+        // Mediana Endpoint
+        add_settings_field( 'agmb_mediana_endpoint', 'Mediana API Endpoint', array( $this, 'render_mediana_endpoint_field' ), $this->plugin_name, 'agmb_api_settings_section' );
+
+        // Templates Section
+        add_settings_section( 'agmb_templates_section', 'Message Templates', null, $this->plugin_name );
+        add_settings_field( 'agmb_user_sms_template', 'User SMS Template', array( $this, 'render_user_sms_template_field' ), $this->plugin_name, 'agmb_templates_section' );
+        add_settings_field( 'agmb_admin_sms_template', 'Admin SMS Template', array( $this, 'render_admin_sms_template_field' ), $this->plugin_name, 'agmb_templates_section' );
+        add_settings_field( 'agmb_email_template', 'Email Template', array( $this, 'render_email_template_field' ), $this->plugin_name, 'agmb_templates_section' );
+        add_settings_field( 'agmb_receipt_template', 'On-site Receipt Template', array( $this, 'render_receipt_template_field' ), $this->plugin_name, 'agmb_templates_section' );
+    }
+
+    public function render_capacity_field() {
+        $options = get_option('agmb_settings');
+        echo '<input type="number" name="agmb_settings[capacity]" value="' . esc_attr($options['capacity'] ?? '1') . '" min="1">';
+    }
+
+    public function render_mediana_endpoint_field() {
+        $options = get_option('agmb_settings');
+        echo '<input type="text" name="agmb_settings[mediana_endpoint]" value="' . esc_attr($options['mediana_endpoint'] ?? 'http://api.mediana.ir/v1/messages') . '" size="50">';
+    }
+
+    public function render_user_sms_template_field() {
+        $options = get_option('agmb_settings');
+        echo '<textarea name="agmb_settings[user_sms_template]" rows="5" cols="50">' . esc_textarea($options['user_sms_template'] ?? '') . '</textarea>';
+    }
+
+    public function render_admin_sms_template_field() {
+        $options = get_option('agmb_settings');
+        echo '<textarea name="agmb_settings[admin_sms_template]" rows="5" cols="50">' . esc_textarea($options['admin_sms_template'] ?? '') . '</textarea>';
+    }
+
+    public function render_email_template_field() {
+        $options = get_option('agmb_settings');
+        echo '<textarea name="agmb_settings[email_template]" rows="8" cols="50">' . esc_textarea($options['email_template'] ?? '') . '</textarea>';
+    }
+
+    public function render_receipt_template_field() {
+        $options = get_option('agmb_settings');
+        echo '<textarea name="agmb_settings[receipt_template]" rows="5" cols="50">' . esc_textarea($options['receipt_template'] ?? '') . '</textarea>';
     }
 
     public function render_meeting_link_field() {
@@ -125,9 +166,31 @@ class AG_Moshtashar_Booking_Pro {
 
     public function render_working_hours_field() {
         $options = get_option('agmb_settings');
-        $start = esc_attr($options['working_hours']['start'] ?? '09:00');
-        $end = esc_attr($options['working_hours']['end'] ?? '17:00');
-        echo "Start: <input type='time' name='agmb_settings[working_hours][start]' value='{$start}'> End: <input type='time' name='agmb_settings[working_hours][end]' value='{$end}'>";
+        $start = $options['working_hours']['start'] ?? '08:00';
+        $end = $options['working_hours']['end'] ?? '24:00';
+
+        $html = 'Start: <select name="agmb_settings[working_hours][start]">';
+        $current = new DateTime('00:00');
+        $end_time = new DateTime('24:00');
+        while ($current <= $end_time) {
+            $time_val = $current->format('H:i');
+            $selected = ($time_val == $start) ? 'selected' : '';
+            $html .= "<option value='{$time_val}' {$selected}>{$time_val}</option>";
+            $current->modify('+15 minutes');
+        }
+        $html .= '</select>';
+
+        $html .= ' End: <select name="agmb_settings[working_hours][end]">';
+        $current = new DateTime('00:00');
+        while ($current <= $end_time) {
+            $time_val = $current->format('H:i');
+            $selected = ($time_val == $end) ? 'selected' : '';
+            $html .= "<option value='{$time_val}' {$selected}>{$time_val}</option>";
+            $current->modify('+15 minutes');
+        }
+        $html .= '</select>';
+
+        echo $html;
     }
 
     public function render_weekly_holidays_field() {

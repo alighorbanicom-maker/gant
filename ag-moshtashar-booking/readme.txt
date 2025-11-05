@@ -34,15 +34,24 @@ After activation, a new menu item named "AG Booking" will appear in your WordPre
     *   **Meeting Link**: Enter the default URL for the online meeting.
 
 2.  **Schedule Settings**:
-    *   **Working Hours**: Set the start and end times for your availability.
+    *   **Working Hours**: Set the start and end times for your availability using the dropdowns.
     *   **Weekly Holidays**: Check the boxes for the days of the week you are unavailable.
     *   **Blocked Dates**: Enter specific dates you are unavailable, one per line, in the format YYYY-MM-DD.
+    *   **Capacity per Time Slot**: Set the number of bookings that can be made for a single time slot.
 
 3.  **API Settings**:
     *   **Zarinpal API Key**: Enter your Merchant ID from Zarinpal.
     *   **Mediana API Key**: Enter your API key from Mediana.
     *   **Mediana Sender Line**: Enter the sender number provided by Mediana.
+    *   **Mediana API Endpoint**: Enter the API endpoint for Mediana's service. Defaults to the standard URL.
     *   **Admin Mobile**: Enter the mobile number to receive admin notifications for new bookings.
+
+4.  **Message Templates**:
+    *   Use this section to customize the content of automated messages. You can use the following placeholders: {first_name}, {last_name}, {service}, {dow}, {jdate}, {time}, {duration}, {ref}, {price}, {meeting_link}, {mobile}.
+    *   **User SMS Template**: The SMS sent to the user upon successful booking.
+    *   **Admin SMS Template**: The SMS sent to the admin upon a new booking.
+    *   **Email Template**: The email sent to the user.
+    *   **On-site Receipt Template**: The message displayed on the website after a successful booking.
 
 == Usage ==
 

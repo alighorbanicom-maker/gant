@@ -73,8 +73,12 @@ class AGMB_Public {
             $booking_data = (array) $booking;
             $this->send_notifications($booking_data, $ref_id, $booking->price);
 
-            $redirect_url = get_site_url();
-            wp_redirect(add_query_arg(array('booking_status' => 'success', 'ref' => $ref_id), $redirect_url));
+            $receipt_template = $options['receipt_template'] ?? 'رزرو شما با کد رهگیری {ref} با موفقیت ثبت شد.';
+            $receipt_message = str_replace('{ref}', $ref_id, $receipt_template);
+
+            // Redirect back to the booking page with a success message
+            $redirect_url = remove_query_arg(array('Authority', 'Status', 'token'));
+            wp_redirect(add_query_arg(array('booking_status' => 'success', 'message' => urlencode($receipt_message)), $redirect_url));
             exit;
         } else {
             wp_die('تایید پرداخت ناموفق بود. خطا: ' . ($body['errors']['message'] ?? 'خطای نامشخص'));
@@ -84,39 +88,39 @@ class AGMB_Public {
     private function send_notifications($booking_data, $ref_id, $price) {
         $options = get_option('agmb_settings');
 
+        $jdate = $this->format_jalali_date($booking_data['date']);
+        $meeting_link = $options['meeting_link'] ?? '';
+
+        $replacements = array(
+            '{first_name}' => $booking_data['first_name'],
+            '{last_name}' => $booking_data['last_name'],
+            '{service}' => $booking_data['service'],
+            '{dow}' => explode(' - ', $jdate)[0],
+            '{jdate}' => explode(' - ', $jdate)[1],
+            '{time}' => $booking_data['time'],
+            '{duration}' => $booking_data['duration'],
+            '{ref}' => $ref_id,
+            '{price}' => number_format($price),
+            '{meeting_link}' => $meeting_link,
+            '{mobile}' => $booking_data['mobile'],
+        );
+
         // --- Send Email ---
         $to = $booking_data['email'];
         $subject = 'تایید رزرو شما – سامانه مستشار دکتر علی قربانی';
-        $jdate = $this->format_jalali_date($booking_data['date']);
-        $meeting_link = $options['meeting_link'] ?? 'لینک جلسه در دسترس نیست';
-
-        $body = "با احترام،\n\n";
-        $body .= "رزرو شما با موفقیت انجام شد.\n";
-        $body .= "خدمت: " . $booking_data['service'] . "\n";
-        $body .= "تاریخ: " . $jdate . "\n";
-        $body .= "ساعت: " . $booking_data['time'] . "\n";
-        $body .= "مدت: " . $booking_data['duration'] . " دقیقه\n";
-        $body .= "کد پیگیری: " . $ref_id . "\n";
-        $body .= "مبلغ: " . number_format($price) . " تومان\n";
-        $body .= "لینک جلسه: " . $meeting_link . "\n";
-        $body .= "\n---\nبا احترام و آرزوی توفیق\nعلی قربانی";
-
+        $email_template = $options['email_template'] ?? '';
+        $body = str_replace(array_keys($replacements), array_values($replacements), $email_template);
         wp_mail($to, $subject, $body);
 
         // --- Send SMS ---
         $mediana_api = $options['mediana_api'] ?? '';
         $mediana_sender = $options['mediana_sender'] ?? '';
+        $mediana_endpoint = $options['mediana_endpoint'] ?? 'http://api.mediana.ir/v1/messages';
 
         // SMS to User
-        $user_message = "جناب آقای/سرکار خانم {$booking_data['first_name']} {$booking_data['last_name']}\n";
-        $user_message .= "رزرو شما با موفقیت ثبت شد.\n";
-        $user_message .= "خدمت: {$booking_data['service']}\n";
-        $user_message .= "روز: {$jdate}\n";
-        $user_message .= "ساعت: {$booking_data['time']}\n";
-        $user_message .= "کد پیگیری: {$ref_id}\n";
-        $user_message .= "لینک جلسه: {$meeting_link}";
-
-        wp_remote_post('http://api.mediana.ir/v1/messages', array(
+        $user_sms_template = $options['user_sms_template'] ?? '';
+        $user_message = str_replace(array_keys($replacements), array_values($replacements), $user_sms_template);
+        wp_remote_post($mediana_endpoint, array(
             'method' => 'POST',
             'headers' => array('Authorization' => 'Bearer ' . $mediana_api),
             'body' => array(
@@ -128,22 +132,19 @@ class AGMB_Public {
 
         // SMS to Admin
         $admin_mobile = $options['admin_mobile'] ?? '';
-        if (empty($admin_mobile)) return; // Don't send if not configured
-        $admin_message = "رزرو جدید ثبت شد:\n";
-        $admin_message .= "{$booking_data['first_name']} {$booking_data['last_name']} / {$booking_data['mobile']}\n";
-        $admin_message .= "خدمت: {$booking_data['service']}\n";
-        $admin_message .= "روز: {$jdate} ساعت {$booking_data['time']}\n";
-        $admin_message .= "کد: {$ref_id}";
-
-        wp_remote_post('http://api.mediana.ir/v1/messages', array(
-            'method' => 'POST',
-            'headers' => array('Authorization' => 'Bearer ' . $mediana_api),
-            'body' => array(
-                'originator' => $mediana_sender,
-                'recipients' => array($admin_mobile),
-                'message' => $admin_message
-            )
-        ));
+        if (!empty($admin_mobile)) {
+            $admin_sms_template = $options['admin_sms_template'] ?? '';
+            $admin_message = str_replace(array_keys($replacements), array_values($replacements), $admin_sms_template);
+            wp_remote_post($mediana_endpoint, array(
+                'method' => 'POST',
+                'headers' => array('Authorization' => 'Bearer ' . $mediana_api),
+                'body' => array(
+                    'originator' => $mediana_sender,
+                    'recipients' => array($admin_mobile),
+                    'message' => $admin_message
+                )
+            ));
+        }
     }
 
     private function format_jalali_date($gregorian_date_str, $format = 'Y/m/d') {
@@ -270,9 +271,16 @@ class AGMB_Public {
 
         require_once AGMB_PLUGIN_DIR . 'includes/gregorian_jalali.php';
         $jalali_date_str = sanitize_text_field( $_POST['date'] );
-        list($jy, $jm, $jd) = explode('/', $jalali_date_str);
-        $gregorian_date_arr = jalali_to_gregorian($jy, $jm, $jd);
-        $date_str = implode('-', $gregorian_date_arr);
+        // The datepicker returns YYYY/MM/DD, which is what the library expects.
+        // Let's ensure it's correctly formatted before exploding.
+        $jalali_parts = explode('/', $jalali_date_str);
+        if (count($jalali_parts) !== 3) {
+            wp_send_json_error(['message' => 'تاریخ نامعتبر است.']);
+            return;
+        }
+        list($jy, $jm, $jd) = $jalali_parts;
+        $gregorian_date_arr = jalali_to_gregorian((int)$jy, (int)$jm, (int)$jd);
+        $date_str = $gregorian_date_arr[0] . '-' . str_pad($gregorian_date_arr[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($gregorian_date_arr[2], 2, '0', STR_PAD_LEFT);
 
         $options = get_option( 'agmb_settings' );
         $start_time_str = $options['working_hours']['start'] ?? '09:00';
@@ -300,17 +308,21 @@ class AGMB_Public {
             $current_time->modify( '+15 minutes' );
         }
 
-        // Get already booked times for the selected date
+        // Get count of bookings for each time slot
         global $wpdb;
         $table_name = $wpdb->prefix . 'agmb_bookings';
-        $booked_times = $wpdb->get_col( $wpdb->prepare(
-            "SELECT booking_time FROM $table_name WHERE booking_date = %s AND status = 'confirmed'",
+        $bookings_count = $wpdb->get_results( $wpdb->prepare(
+            "SELECT booking_time, COUNT(id) as count FROM $table_name WHERE booking_date = %s AND status = 'confirmed' GROUP BY booking_time",
             $date_str
-        ) );
+        ), OBJECT_K );
+
+        $capacity = $options['capacity'] ?? 1;
 
         // Filter out booked times
-        $available_times = array_filter($available_times, function($time) use ($booked_times) {
-            return !in_array($time . ':00', $booked_times);
+        $available_times = array_filter($available_times, function($time) use ($bookings_count, $capacity) {
+            $time_key = $time . ':00';
+            $count = $bookings_count[$time_key]->count ?? 0;
+            return $count < $capacity;
         });
 
         wp_send_json_success( array_values($available_times) );

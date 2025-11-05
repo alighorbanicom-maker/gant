@@ -110,4 +110,13 @@ jQuery(document).ready(function($) {
             $('#ag-popup-message').fadeOut();
         }
     });
+
+    // Check for success message in URL on page load
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('booking_status') === 'success') {
+        const message = urlParams.get('message');
+        if (message) {
+            showPopup(decodeURIComponent(message));
+        }
+    }
 });
