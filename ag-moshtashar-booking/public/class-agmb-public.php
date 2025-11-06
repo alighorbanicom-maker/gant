@@ -267,32 +267,40 @@ class AGMB_Public {
     }
 
     public function get_available_times() {
-        check_ajax_referer( 'agmb_ajax_nonce', 'nonce' );
+        check_ajax_referer('agmb_ajax_nonce', 'nonce');
 
-        require_once AGMB_PLUGIN_DIR . 'includes/gregorian_jalali.php';
-        $jalali_date_str = sanitize_text_field( $_POST['date'] );
-        // The datepicker returns YYYY/MM/DD, which is what the library expects.
-        // Let's ensure it's correctly formatted before exploding.
-        $jalali_parts = explode('/', $jalali_date_str);
-        if (count($jalali_parts) !== 3) {
-            wp_send_json_error(['message' => 'تاریخ نامعتبر است.']);
+        try {
+            require_once AGMB_PLUGIN_DIR . 'includes/gregorian_jalali.php';
+            $jalali_date_str = sanitize_text_field($_POST['date']);
+
+            if (empty($jalali_date_str) || count(explode('/', $jalali_date_str)) !== 3) {
+                wp_send_json_error(['message' => 'تاریخ ارسال شده نامعتبر است.']);
+                return;
+            }
+
+            list($jy, $jm, $jd) = explode('/', $jalali_date_str);
+            $gregorian_date_arr = jalali_to_gregorian((int)$jy, (int)$jm, (int)$jd);
+            $date_str = $gregorian_date_arr[0] . '-' . str_pad($gregorian_date_arr[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($gregorian_date_arr[2], 2, '0', STR_PAD_LEFT);
+
+            $date_obj = new DateTime($date_str);
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => 'خطا در پردازش تاریخ: ' . $e->getMessage()]);
             return;
         }
-        list($jy, $jm, $jd) = $jalali_parts;
-        $gregorian_date_arr = jalali_to_gregorian((int)$jy, (int)$jm, (int)$jd);
-        $date_str = $gregorian_date_arr[0] . '-' . str_pad($gregorian_date_arr[1], 2, '0', STR_PAD_LEFT) . '-' . str_pad($gregorian_date_arr[2], 2, '0', STR_PAD_LEFT);
 
-        $options = get_option( 'agmb_settings' );
-        $start_time_str = $options['working_hours']['start'] ?? '09:00';
-        $end_time_str = $options['working_hours']['end'] ?? '17:00';
+        $options = get_option('agmb_settings');
+        $start_time_str = $options['working_hours']['start'] ?? '08:00';
+        $end_time_str = $options['working_hours']['end'] ?? '24:00';
         $weekly_holidays = $options['weekly_holidays'] ?? [];
         $blocked_dates_str = $options['blocked_dates'] ?? '';
-        $blocked_dates = !empty($blocked_dates_str) ? explode("\n", $blocked_dates_str) : [];
+        $blocked_dates = !empty($blocked_dates_str) ? array_map('trim', explode("\n", $blocked_dates_str)) : [];
 
-        $day_of_week = strtolower( date( 'l', strtotime( $date_str ) ) );
-
-        if ( in_array( $day_of_week, array_keys( $weekly_holidays ) ) ) {
-            wp_send_json_success( [] ); // It's a holiday
+        // Check for weekly holidays
+        $day_of_week = strtolower($date_obj->format('l'));
+        if (isset($weekly_holidays[$day_of_week])) {
+            wp_send_json_success([]); // It's a holiday
+            return;
         }
 
         if ( in_array( $date_str, $blocked_dates ) ) {
